@@ -52,13 +52,13 @@ def process_config_file(s):
 
         i=i+1
 
-    return li,nodes2listen
+    return li, nodes2listen
           
 
 
 config_data,nodes2listen = read_config_file()
 
-print(nodes2listen)
+print(f"Expecting {nodes2listen} VN connections...\n")
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -101,20 +101,21 @@ for i in range(nodes2listen):
         if len(parts) >= 2:
             vn_ip = parts[0]
             vn_port = int(parts[1])
-            VN_info.append((alphabet_names[i], vn_ip, vn_port))
+            VN_info.append((alphabet_names[i], vn_ip, vn_port, conn))
+            print(f"Stored connection for VN {alphabet_names[i]}.\n")
         else:
             print("⚠️ Invalid message format.")
     else:
         print("⚠️ No data received.")
 
-    conn.close()
-    print(f"Connection with VN {alphabet_names[i]} closed.\n")
+    # conn.close()
+    # print(f"Connection with VN {alphabet_names[i]} closed.\n")
 
 # ---------- Step 4: Print all connected VN info ----------
 print("All VN connections received successfully!\n")
 print("Connected VN details:")
 for vn in VN_info:
-    name, ip, port = vn
+    name, ip, port, _ = vn
     print(f"  VN {name} → IP: {ip}, UDP Port: {port}")
 
 
@@ -124,15 +125,20 @@ print("\nSending LINK-STATE messages to all connected VNs...\n")
 # message type (12 bytes, padded)
 msg_type = b'LINK-STATE' + b'\x00' * (12 - len('LINK-STATE'))
 
-for i, (vn_name, vn_ip, vn_port) in enumerate(VN_info):
+for i, (vn_name, vn_ip, vn_port, conn) in enumerate(VN_info):
     # Build tuple list for this VN
     tuples = []
     for j in range(max_nodes):
         cost = config_data[i][j]
-        if cost > 0:  # valid neighbor
+        if cost >= 0:  # valid neighbor
             neighbor_name = alphabet_names[j]
-            neighbor_ip, neighbor_port = VN_info[j][1], VN_info[j][2]
-            tuples.append((neighbor_name, neighbor_ip, neighbor_port, cost))
+            neighbor_entry = next((v for v in VN_info if v[0] == neighbor_name), None)
+            if neighbor_entry:
+                neighbor_ip, neighbor_port = neighbor_entry[1], neighbor_entry[2]
+                tuples.append((neighbor_name, neighbor_ip, neighbor_port, cost))
+            # neighbor_name = alphabet_names[j]
+            # neighbor_ip, neighbor_port = VN_info[j][1], VN_info[j][2]
+            # tuples.append((neighbor_name, neighbor_ip, neighbor_port, cost))
 
     num_tuples = len(tuples)
     body = b''
@@ -144,18 +150,23 @@ for i, (vn_name, vn_ip, vn_port) in enumerate(VN_info):
     message = msg_type + struct.pack('!B', num_tuples) + body
 
     # Connect to VN and send message
+    # try:
+    #     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    #         s.connect((vn_ip, vn_port))
+    #         s.sendall(message)
+    #         print(f"LINK-STATE message sent to VN {vn_name} ({vn_ip}:{vn_port}) with {num_tuples} tuples.")
+    # except Exception as e:
+        # print(f"⚠️ Failed to send LINK-STATE to VN {vn_name}: {e}")
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((vn_ip, vn_port))
-            s.sendall(message)
-            print(f"LINK-STATE message sent to VN {vn_name} ({vn_ip}:{vn_port}) with {num_tuples} tuples.")
+        conn.sendall(message)
+        print(f"LINK-STATE message sent to VN {vn_name} ({vn_ip}:{vn_port}) with {num_tuples} tuples.")
     except Exception as e:
         print(f"⚠️ Failed to send LINK-STATE to VN {vn_name}: {e}")
+    finally:
+        conn.close()
+
 
 print("\nAll LINK-STATE messages sent successfully.")
-
-
-
 
 server_socket.close()
 print("\nOracle Node shutting down.")
