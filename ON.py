@@ -136,8 +136,7 @@ for i, (vn_name, vn_ip, vn_port, conn) in enumerate(VN_info):
         print(f"LINK-STATE message sent to VN {vn_name} ({vn_ip}:{vn_port}) with {num_tuples} tuples.")
     except Exception as e:
         print(f"⚠️ Failed to send LINK-STATE to VN {vn_name}: {e}")
-    finally:
-        conn.close()
+
 
 
 print("\nAll LINK-STATE messages sent successfully.")

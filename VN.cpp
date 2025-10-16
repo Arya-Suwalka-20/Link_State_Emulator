@@ -3,8 +3,20 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <bits/stdc++.h>
+#include <csignal>   // <-- for signal handling
 using namespace std;
 
+int sock = -1; // make global so handler can access
+
+// ---------- Signal handler ----------
+void handle_sigint(int sig) {
+    cout << "\n🛑 Keyboard interrupt (Ctrl + C) detected!" << endl;
+    if (sock != -1) {
+        close(sock);
+        cout << "🔒 Socket closed. VN shutting down gracefully." << endl;
+    }
+    exit(0); // terminate cleanly
+}
 ssize_t recv_all(int sock, void* buf, size_t n) {
     size_t total = 0;
     char* p = (char*)buf;
@@ -22,7 +34,7 @@ int main() {
     int ON_PORT = 5000;
     char VN_IP[32] = "127.0.0.1";
     int VN_UDP_PORT;
-
+    signal(SIGINT, handle_sigint);
     // cout << "Give the ON IP address : ";
     // cin >> ON_IP;
     // cout << "Give the VN IP address : ";
