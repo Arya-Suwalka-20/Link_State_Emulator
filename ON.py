@@ -96,7 +96,6 @@ for i in range(nodes2listen):
     else:
         print("⚠️ No data received.")
 
-
 # ---------- Step 4: Print all connected VN info ----------
 print("All VN connections received successfully!\n")
 print("Connected VN details:")
@@ -109,7 +108,7 @@ for vn in VN_info:
 print("\nSending LINK-STATE messages to all connected VNs... present in the configuration file\n")
 
 # message type (12 bytes, padded)
-msg_type = b'LINK-STATE' + b'\x00' * (12 - len('LINK-STATE'))
+# msg_type = b'LINK-STATE' + b'\x00' * (12 - len('LINK-STATE'))
 
 for i, (vn_name, vn_ip, vn_port, conn) in enumerate(VN_info):
     tuples = []
@@ -123,16 +122,17 @@ for i, (vn_name, vn_ip, vn_port, conn) in enumerate(VN_info):
                 tuples.append((neighbor_name, neighbor_ip, neighbor_port, cost))
 
     num_tuples = len(tuples)
-    body = b''
+    # body = b''
 
-    for (name, ip, port, cost) in tuples:
-        ip_bytes = ip.encode('utf-8') + b'\x00' * (16 - len(ip))
-        body += struct.pack('!c16sHI', name.encode('utf-8'), ip_bytes, port, cost)
+    # for (name, ip, port, cost) in tuples:
+    #     ip_bytes = ip.encode('utf-8') + b'\x00' * (16 - len(ip))
+    #     body += struct.pack('!c16sHI', name.encode('utf-8'), ip_bytes, port, cost)
 
-    message = msg_type + struct.pack('!B', num_tuples) + body
+    message = str(tuples)
 
     try:
-        conn.sendall(message)
+        print(message)
+        conn.sendall(message.encode())
         print(f"LINK-STATE message sent to VN {vn_name} ({vn_ip}:{vn_port}) with {num_tuples} tuples.")
     except Exception as e:
         print(f"⚠️ Failed to send LINK-STATE to VN {vn_name}: {e}")
