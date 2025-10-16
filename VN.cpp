@@ -98,10 +98,45 @@ int main() {
             cout << "Message received from ON: " << buffer << endl;
         }
 
+        vector<pair<string, string>> neighbor_info;
+        int leng = strlen(buffer);
+        bool nodestart = false;
+        for(int i=1; i<leng; i++){
+            if(buffer[i]=='('){
+                nodestart = true;
+                string nodename = "";
+                string costy = "";
+                int tupleInd = 0;
+                i++;
+                while(i < leng && buffer[i]!=')'){
+                    if (buffer[i] == '\'') { // skip quote marks
+                        i++;
+                        continue;
+                    }
+                    if(buffer[i]==','){
+                        if(tupleInd==3) tupleInd = 0;
+                        else tupleInd += 1;
+                        i++;
+                        continue;
+                    }
 
-        char* ptr = buffer;
+                    if (buffer[i] != ' ' && buffer[i] != ')') {
+                        if (tupleInd == 0) nodename += buffer[i];   
+                        else if (tupleInd == 3) costy += buffer[i];  
+                    }
 
-       
+                    i++;
+                    
+                }
+                neighbor_info.push_back({nodename, costy});
+
+            }
+            
+        }
+
+        for(int i=0; i<neighbor_info.size(); i++){
+            cout << neighbor_info[i].first << " " << neighbor_info[i].second << endl;
+        }
     }
 
     return 0;
