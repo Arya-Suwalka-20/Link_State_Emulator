@@ -14,7 +14,7 @@ def read_config_file():
     with open(config_file, 'r') as f:
         config_data = f.read()
     print("Configuration file read successfully!")
-    return process_config_file(config_data)
+    return config_data
 
 
 def process_config_file(s):
@@ -55,8 +55,8 @@ def process_config_file(s):
     return li, nodes2listen
           
 
-
-config_data,nodes2listen = read_config_file()
+data=read_config_file()
+config_data,nodes2listen = process_config_file(data)
 
 print(f"Expecting {nodes2listen} VN connections...\n")
 
@@ -71,18 +71,6 @@ server_socket.listen(max_nodes)
 
 print(f" Oracle Node listening at {ORACLE_IP}:{PORT}")
 
-# conn, addr = server_socket.accept()
-# print(f" Connection established with VN at {addr}")
-
-# data = conn.recv(1024).decode() 
-# if data:
-#     print(f" Message received from VN: {data}")
-# else:
-#     print(" No data received from VN.")
-
-# conn.close()
-# server_socket.close()
-# print(" Connection closed.")
 
 VN_info = []   # List to store (name, ip, port)
 alphabet_names = list(string.ascii_uppercase)  # ['A', 'B', 'C', ...]
@@ -108,8 +96,6 @@ for i in range(nodes2listen):
     else:
         print("⚠️ No data received.")
 
-    # conn.close()
-    # print(f"Connection with VN {alphabet_names[i]} closed.\n")
 
 # ---------- Step 4: Print all connected VN info ----------
 print("All VN connections received successfully!\n")
@@ -120,25 +106,21 @@ for vn in VN_info:
 
 
 # ---------- Step 5: Send LINK-STATE messages ----------
-print("\nSending LINK-STATE messages to all connected VNs...\n")
+print("\nSending LINK-STATE messages to all connected VNs... present in the configuration file\n")
 
 # message type (12 bytes, padded)
 msg_type = b'LINK-STATE' + b'\x00' * (12 - len('LINK-STATE'))
 
 for i, (vn_name, vn_ip, vn_port, conn) in enumerate(VN_info):
-    # Build tuple list for this VN
     tuples = []
     for j in range(max_nodes):
         cost = config_data[i][j]
-        if cost >= 0:  # valid neighbor
+        if cost >= 0:  
             neighbor_name = alphabet_names[j]
             neighbor_entry = next((v for v in VN_info if v[0] == neighbor_name), None)
             if neighbor_entry:
                 neighbor_ip, neighbor_port = neighbor_entry[1], neighbor_entry[2]
                 tuples.append((neighbor_name, neighbor_ip, neighbor_port, cost))
-            # neighbor_name = alphabet_names[j]
-            # neighbor_ip, neighbor_port = VN_info[j][1], VN_info[j][2]
-            # tuples.append((neighbor_name, neighbor_ip, neighbor_port, cost))
 
     num_tuples = len(tuples)
     body = b''
@@ -149,14 +131,6 @@ for i, (vn_name, vn_ip, vn_port, conn) in enumerate(VN_info):
 
     message = msg_type + struct.pack('!B', num_tuples) + body
 
-    # Connect to VN and send message
-    # try:
-    #     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    #         s.connect((vn_ip, vn_port))
-    #         s.sendall(message)
-    #         print(f"LINK-STATE message sent to VN {vn_name} ({vn_ip}:{vn_port}) with {num_tuples} tuples.")
-    # except Exception as e:
-        # print(f"⚠️ Failed to send LINK-STATE to VN {vn_name}: {e}")
     try:
         conn.sendall(message)
         print(f"LINK-STATE message sent to VN {vn_name} ({vn_ip}:{vn_port}) with {num_tuples} tuples.")
@@ -168,8 +142,38 @@ for i, (vn_name, vn_ip, vn_port, conn) in enumerate(VN_info):
 
 print("\nAll LINK-STATE messages sent successfully.")
 
-server_socket.close()
-print("\nOracle Node shutting down.")
+print("Oracle Node will now continuously listen for new VN connections...\n")
+
+while True:
+    i = nodes2listen
+    try:
+        conn, addr = server_socket.accept()
+        
+        print(f"✔ Connection established with VN {alphabet_names[i]} at {addr}")
+        
+        # Receive VN info
+        data = conn.recv(1024).decode()
+        if data:
+            print(f"↳ Message from VN {alphabet_names[i]}: {data}")
+            # expected format: "<VN_IP> <VN_PORT>"
+            parts = data.strip().split()
+            if len(parts) >= 2:
+                vn_ip = parts[0]
+                vn_port = int(parts[1])
+                VN_info.append((alphabet_names[i], vn_ip, vn_port, conn))
+                print(f"Stored connection for VN {alphabet_names[i]}.\n")
+            else:
+                print("⚠️ Invalid message format.")
+        else:
+            print("⚠️ No data received.")
+        i+=1
+
+    except KeyboardInterrupt:
+        print("\n🛑 Oracle Node shutting down manually.")
+        break
+    except Exception as e:
+        print(f"⚠️ Error while handling new connection: {e}")
+
 
 
 

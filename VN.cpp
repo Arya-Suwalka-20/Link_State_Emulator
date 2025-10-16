@@ -70,86 +70,80 @@ int main() {
 
     send(sock, message, strlen(message), 0);
     std::cout << "Sent to ON: " << message << std::endl;
+    while (true){
+        char buffer[256];
+        memset(buffer, 0, sizeof(buffer));
 
-    char buffer[256];
-    memset(buffer, 0, sizeof(buffer));
+        cout << "Waiting for message from ON..." << endl;
+        int bytes_received = recv(sock, buffer, sizeof(buffer) - 1, 0);
 
-    cout << "Waiting for message from ON..." << endl;
-    int bytes_received = recv(sock, buffer, sizeof(buffer) - 1, 0);
+        if (bytes_received < 0) {
+            perror("Receive failed");
+        } else if (bytes_received == 0) {
+            cout << "Connection closed by ON." << endl;
+        } else {
+            buffer[bytes_received] = '\0'; // null-terminate
+            cout << "Message received from ON: " << buffer << endl;
+        }
 
-    if (bytes_received < 0) {
-        perror("Receive failed");
-    } else if (bytes_received == 0) {
-        cout << "Connection closed by ON." << endl;
-    } else {
-        buffer[bytes_received] = '\0'; // null-terminate
-        cout << "Message received from ON: " << buffer << endl;
+
+        char* ptr = buffer;
+
+        // header (12 bytes)
+        char msg_type[13];
+        memcpy(msg_type, ptr, 12);
+        msg_type[12] = '\0';
+        ptr += 12;
+
+        uint8_t num_tuples = *ptr;
+        ptr += 1;
+
+        struct Tuple {
+            char name;
+            char ip[17];
+            uint16_t port;
+            uint32_t cost;
+        };
+
+        vector<Tuple> tuples;
+
+        for (int i = 0; i < num_tuples; i++) {
+            Tuple t;
+            t.name = *ptr; ptr += 1;
+            memcpy(t.ip, ptr, 16); t.ip[16] = '\0'; ptr += 16;
+            memcpy(&t.port, ptr, 2); ptr += 2;
+            memcpy(&t.cost, ptr, 4); ptr += 4;
+
+            // convert byte order
+            t.port = ntohs(t.port);
+            t.cost = ntohl(t.cost);
+
+            tuples.push_back(t);
+        }
+
+        // ---- Print full details ----
+        cout << "\nLINK-STATE message type: " << msg_type << endl;
+        cout << "Number of tuples: " << (int)num_tuples << endl;
+        cout << "---------------------------------------------\n";
+        cout << "Neighbor | IP Address       | UDP Port | Cost\n";
+        cout << "---------------------------------------------\n";
+
+        for (auto &t : tuples) {
+            cout << "   " << t.name << "      | "
+                << t.ip << " | "
+                << t.port << "     | "
+                << t.cost << endl;
+        }
+        cout << "---------------------------------------------\n";
+
+        // ---- Print human-readable summary (E=0,C=1,D=7) ----
+        string summary;
+        for (auto &t : tuples) {
+            if (!summary.empty()) summary += ",";
+            summary += string(1, t.name) + "=" + to_string(t.cost);
+        }
+        cout << "Summary: " << summary << endl;
     }
-
-    close(sock);
-    std::cout << "Connection closed.\n";
-
-    // ---- Decode message ----
-    char* ptr = buffer;
-
-    // header (12 bytes)
-    char msg_type[13];
-    memcpy(msg_type, ptr, 12);
-    msg_type[12] = '\0';
-    ptr += 12;
-
-    uint8_t num_tuples = *ptr;
-    ptr += 1;
-
-    struct Tuple {
-        char name;
-        char ip[17];
-        uint16_t port;
-        uint32_t cost;
-    };
-
-    vector<Tuple> tuples;
-
-    for (int i = 0; i < num_tuples; i++) {
-        Tuple t;
-        t.name = *ptr; ptr += 1;
-        memcpy(t.ip, ptr, 16); t.ip[16] = '\0'; ptr += 16;
-        memcpy(&t.port, ptr, 2); ptr += 2;
-        memcpy(&t.cost, ptr, 4); ptr += 4;
-
-        // convert byte order
-        t.port = ntohs(t.port);
-        t.cost = ntohl(t.cost);
-
-        tuples.push_back(t);
-    }
-
-    // ---- Print full details ----
-    cout << "\nLINK-STATE message type: " << msg_type << endl;
-    cout << "Number of tuples: " << (int)num_tuples << endl;
-    cout << "---------------------------------------------\n";
-    cout << "Neighbor | IP Address       | UDP Port | Cost\n";
-    cout << "---------------------------------------------\n";
-
-    for (auto &t : tuples) {
-        cout << "   " << t.name << "      | "
-             << t.ip << " | "
-             << t.port << "     | "
-             << t.cost << endl;
-    }
-    cout << "---------------------------------------------\n";
-
-    // ---- Print human-readable summary (E=0,C=1,D=7) ----
-    string summary;
-    for (auto &t : tuples) {
-        if (!summary.empty()) summary += ",";
-        summary += string(1, t.name) + "=" + to_string(t.cost);
-    }
-    cout << "Summary: " << summary << endl;
-
-    // ---- Cleanup ----
-    close(sock);
-    cout << "\nConnection closed.\n";
 
     return 0;
 }
