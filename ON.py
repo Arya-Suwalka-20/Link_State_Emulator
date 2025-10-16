@@ -122,11 +122,6 @@ for i, (vn_name, vn_ip, vn_port, conn) in enumerate(VN_info):
                 tuples.append((neighbor_name, neighbor_ip, neighbor_port, cost))
 
     num_tuples = len(tuples)
-    # body = b''
-
-    # for (name, ip, port, cost) in tuples:
-    #     ip_bytes = ip.encode('utf-8') + b'\x00' * (16 - len(ip))
-    #     body += struct.pack('!c16sHI', name.encode('utf-8'), ip_bytes, port, cost)
 
     message = str(tuples)
 
@@ -159,13 +154,28 @@ while True:
             if len(parts) >= 2:
                 vn_ip = parts[0]
                 vn_port = int(parts[1])
-                VN_info.append((alphabet_names[i], vn_ip, vn_port, conn))
+                name=alphabet_names[i]
+                VN_info.append((name, vn_ip, vn_port, conn))
                 print(f"Stored connection for VN {alphabet_names[i]}.\n")
             else:
                 print("⚠️ Invalid message format.")
         else:
             print("⚠️ No data received.")
         i+=1
+
+        print("Sending message now")
+        tuples=[]
+        tuples.append((name, vn_ip, vn_port, 0))
+        num_tuples = len(tuples)
+
+        message = str(tuples)
+
+        try:
+            print(message)
+            conn.sendall(message.encode())
+            print(f"LINK-STATE message sent to VN {vn_name} ({vn_ip}:{vn_port}) with {num_tuples} tuples.")
+        except Exception as e:
+            print(f"⚠️ Failed to send LINK-STATE to VN {vn_name}: {e}")
 
     except KeyboardInterrupt:
         print("\n🛑 Oracle Node shutting down manually.")
