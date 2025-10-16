@@ -98,7 +98,7 @@ int main() {
             cout << "Message received from ON: " << buffer << endl;
         }
 
-        vector<pair<string, string>> neighbor_info;
+        vector<pair<char, int>> neighbor_info;
         int leng = strlen(buffer);
         bool nodestart = false;
         for(int i=1; i<leng; i++){
@@ -128,14 +128,13 @@ int main() {
                     i++;
                     
                 }
-                neighbor_info.push_back({nodename, costy});
-
-            }
+                if (!nodename.empty() && !costy.empty()) {
+                    char node_char = nodename[0];   // convert string to single char
+                    int cost_val = stoi(costy);      // convert string to int
+                    neighbor_info.push_back({node_char, cost_val});
+                }
             
-        }
-
-        for(int i=0; i<neighbor_info.size(); i++){
-            cout << neighbor_info[i].first << " " << neighbor_info[i].second << endl;
+            }
         }
     }
 
