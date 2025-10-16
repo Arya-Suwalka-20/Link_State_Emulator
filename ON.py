@@ -1,22 +1,24 @@
 import sys
 import socket
 import string
-import struct
+import os
+import time
+import threading
+
 
 max_nodes=26
+config_file = sys.argv[1]
 # function to read config file
 def read_config_file():
     if len(sys.argv) != 2:
         print("Usage: python ON.py <config_file>")
         sys.exit(1)
 
-    config_file = sys.argv[1]
+    
     with open(config_file, 'r') as f:
         config_data = f.read()
     print("Configuration file read successfully!")
     return config_data
-
-
 def process_config_file(s):
     
     nodes2listen = 1
@@ -54,6 +56,8 @@ def process_config_file(s):
 
     return li, nodes2listen
           
+
+last_modified_time = os.path.getmtime(config_file)
 
 data=read_config_file()
 config_data,nodes2listen = process_config_file(data)
@@ -137,12 +141,48 @@ for i, (vn_name, vn_ip, vn_port, conn) in enumerate(VN_info):
 print("\nAll LINK-STATE messages sent successfully.")
 
 print("Oracle Node will now continuously listen for new VN connections...\n")
+def monitor_config_changes():
+    global last_modified_time
+    while True:
+        try:
+            current_time = os.path.getmtime(config_file)
+            if current_time != last_modified_time:
+                print("\n🔄 Detected change in configuration file! Reloading...")
+                data = read_config_file()
+                config_data, __ = process_config_file(data)
+                last_modified_time = current_time
 
+                # Send updated LINK-STATE messages to all VNs
+                for i in range (nodes2listen):
+                    vn_name, vn_ip, vn_port, conn = VN_info[i]
+                    tuples = []
+                    for j in range(max_nodes):
+                        cost = config_data[alphabet_names.index(vn_name)][j]
+                        if cost >= 0:
+                            neighbor_name = alphabet_names[j]
+                            neighbor_entry = next((v for v in VN_info if v[0] == neighbor_name), None)
+                            if neighbor_entry:
+                                neighbor_ip, neighbor_port = neighbor_entry[1], neighbor_entry[2]
+                                tuples.append((neighbor_name, neighbor_ip, neighbor_port, cost))
+                    message = str(tuples)
+                    try:
+                        conn.sendall(message.encode())
+                        print(f"✅ Updated LINK-STATE sent to {vn_name}")
+                    except Exception as e:
+                        print(f"⚠️ Failed to send updated LINK-STATE to {vn_name}: {e}")
+
+            time.sleep(3)  # check every 3 seconds
+        except Exception as e:
+            print(f"⚠️ Error while monitoring config: {e}")
+            time.sleep(3)
+# Run monitor thread in background
+threading.Thread(target=monitor_config_changes, daemon=True).start()
+i = nodes2listen
 while True:
-    i = nodes2listen
+    
     try:
         conn, addr = server_socket.accept()
-        
+        print(i,nodes2listen)
         print(f"✔ Connection established with VN {alphabet_names[i]} at {addr}")
         
         # Receive VN info
