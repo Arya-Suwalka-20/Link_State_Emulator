@@ -27,20 +27,44 @@ ssize_t recv_all(int sock, void* buf, size_t n) {
     }
     return total;
 }
+
+string get_local_ip() {
+    int temp_sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (temp_sock < 0) return "127.0.0.1";
+
+    sockaddr_in temp_addr{};
+    temp_addr.sin_family = AF_INET;
+    temp_addr.sin_port = htons(80); // arbitrary
+    inet_pton(AF_INET, "8.8.8.8", &temp_addr.sin_addr);
+
+    connect(temp_sock, (struct sockaddr*)&temp_addr, sizeof(temp_addr));
+
+    sockaddr_in local_addr{};
+    socklen_t addr_len = sizeof(local_addr);
+    getsockname(temp_sock, (struct sockaddr*)&local_addr, &addr_len);
+
+    char ip_str[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &local_addr.sin_addr, ip_str, sizeof(ip_str));
+    close(temp_sock);
+    return string(ip_str);
+}
+
 int main() {
     // const char* ON_IP = "0.0.0.0";   
-    // const int ON_PORT = 5000;      
-    char ON_IP[32] = " 10.51.12.12";
-    int ON_PORT = 5000;
-    char VN_IP[32] = "10.51.27.185";
-    int VN_UDP_PORT;
+    // const int ON_PORT = 5000;  
     signal(SIGINT, handle_sigint);
+
+    char ON_IP[32] = "10.51.12.12";
+    int ON_PORT = 5000;
+    // char VN_IP[32] = "10.51.27.185";
+    // int VN_UDP_PORT;
+    
     // cout << "Give the ON IP address : ";
     // cin >> ON_IP;
     // cout << "Give the VN IP address : ";
     // cin >> VN_IP;
-    cout << "Give the VN port number : ";
-    cin >> VN_UDP_PORT; 
+    // cout << "Give the VN port number : ";
+    // cin >> VN_UDP_PORT; 
 
     // const char* VN_NAME = "A";
     // const char* VN_IP = "10.0.0.1";
@@ -52,16 +76,29 @@ int main() {
         return 1;
     }
 
-    sockaddr_in vn_addr;
+    // sockaddr_in vn_addr;
+    // vn_addr.sin_family = AF_INET;
+    // vn_addr.sin_port = htons(VN_UDP_PORT);
+    // vn_addr.sin_addr.s_addr = inet_addr(VN_IP);
+
+    // Automatically pick VN IP and port
+    string VN_IP = get_local_ip();
+    sockaddr_in vn_addr{};
     vn_addr.sin_family = AF_INET;
-    vn_addr.sin_port = htons(VN_UDP_PORT);
-    vn_addr.sin_addr.s_addr = inet_addr(VN_IP);
+    vn_addr.sin_port = htons(0);  // 0 lets OS pick an available port
+    inet_pton(AF_INET, VN_IP.c_str(), &vn_addr.sin_addr);
 
     if (bind(sock, (struct sockaddr*)&vn_addr, sizeof(vn_addr)) < 0) {
         cerr << "Error binding VN socket.\n";
         close(sock);
         return 1;
     }
+
+    // Find assigned port
+    sockaddr_in assigned_addr{};
+    socklen_t len = sizeof(assigned_addr);
+    getsockname(sock, (struct sockaddr*)&assigned_addr, &len);
+    int VN_UDP_PORT = ntohs(assigned_addr.sin_port);
 
     cout << "VN bound to " << VN_IP << ":" << VN_UDP_PORT << endl;
 
@@ -78,7 +115,7 @@ int main() {
     }
 
     char message[128];
-    snprintf(message, sizeof(message), "%s %d", VN_IP, VN_UDP_PORT);
+    snprintf(message, sizeof(message), "%s %d", VN_IP.c_str(), VN_UDP_PORT);
 
     send(sock, message, strlen(message), 0);
     std::cout << "Sent to ON: " << message << std::endl;
