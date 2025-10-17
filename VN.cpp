@@ -30,9 +30,9 @@ ssize_t recv_all(int sock, void* buf, size_t n) {
 int main() {
     // const char* ON_IP = "0.0.0.0";   
     // const int ON_PORT = 5000;      
-    char ON_IP[32] = "0.0.0.0";
+    char ON_IP[32] = " 10.51.12.12";
     int ON_PORT = 5000;
-    char VN_IP[32] = "127.0.0.1";
+    char VN_IP[32] = "10.51.27.185";
     int VN_UDP_PORT;
     signal(SIGINT, handle_sigint);
     // cout << "Give the ON IP address : ";

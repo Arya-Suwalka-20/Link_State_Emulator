@@ -67,7 +67,7 @@ print(f"Expecting {nodes2listen} VN connections...\n")
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-ORACLE_IP = "0.0.0.0"
+ORACLE_IP = " 10.51.12.12"
 PORT = 5000
 
 server_socket.bind((ORACLE_IP, PORT))
