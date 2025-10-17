@@ -9,6 +9,18 @@ import threading
 max_nodes=26
 config_file = sys.argv[1]
 # function to read config file
+def get_local_ip():
+    """Returns the primary IP address of the local machine."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # connect to a public IP (doesn’t actually send packets)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = "127.0.0.1"  # fallback
+    finally:
+        s.close()
+    return ip
 def read_config_file():
     if len(sys.argv) != 2:
         print("Usage: python ON.py <config_file>")
@@ -67,7 +79,7 @@ print(f"Expecting {nodes2listen} VN connections...\n")
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-ORACLE_IP = " 10.51.12.12"
+ORACLE_IP = get_local_ip()
 PORT = 5000
 
 server_socket.bind((ORACLE_IP, PORT))

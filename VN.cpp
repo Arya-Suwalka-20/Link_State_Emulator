@@ -17,16 +17,6 @@ void handle_sigint(int sig) {
     }
     exit(0); // terminate cleanly
 }
-ssize_t recv_all(int sock, void* buf, size_t n) {
-    size_t total = 0;
-    char* p = (char*)buf;
-    while (total < n) {
-        ssize_t r = recv(sock, p + total, n - total, 0);
-        if (r <= 0) return r;
-        total += r;
-    }
-    return total;
-}
 
 string get_local_ip() {
     int temp_sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -54,13 +44,13 @@ int main() {
     // const int ON_PORT = 5000;  
     signal(SIGINT, handle_sigint);
 
-    char ON_IP[32] = "10.51.12.12";
+    char ON_IP[32]  ;
     int ON_PORT = 5000;
     // char VN_IP[32] = "10.51.27.185";
     // int VN_UDP_PORT;
     
-    // cout << "Give the ON IP address : ";
-    // cin >> ON_IP;
+    cout << "Give the ON IP address : ";
+    cin >> ON_IP;
     // cout << "Give the VN IP address : ";
     // cin >> VN_IP;
     // cout << "Give the VN port number : ";
@@ -128,8 +118,10 @@ int main() {
 
         if (bytes_received < 0) {
             perror("Receive failed");
+            break;
         } else if (bytes_received == 0) {
             cout << "Connection closed by ON." << endl;
+            break;
         } else {
             buffer[bytes_received] = '\0'; // null-terminate
             cout << "Message received from ON: " << buffer << endl;
